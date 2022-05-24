@@ -6,6 +6,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Bot.Builder;
+using Microsoft.Bot.Builder.Azure.Blobs;
 using Microsoft.Bot.Builder.Integration.AspNet.Core;
 using Microsoft.Bot.Connector.Authentication;
 using Microsoft.Extensions.Configuration;
@@ -27,6 +28,20 @@ namespace BasicBot
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddHttpClient().AddControllers().AddNewtonsoftJson();
+
+            var storage = new BlobsStorage(
+                    Configuration.GetValue<string>("BlobConnectionString"),
+                    Configuration.GetValue<string>("BlobContainerName")
+                    );
+            services.AddSingleton<IStorage>(storage);
+
+            // Create the User state. (Used in this bot's Dialog implementation.)
+            var userState = new UserState(storage);
+            services.AddSingleton(userState);
+
+            // Create the Conversation state. (Used by the Dialog system itself.)
+            var conversationState = new ConversationState(storage);
+            services.AddSingleton(conversationState);
 
             // Create the Bot Framework Authentication to be used with the Bot Adapter.
             services.AddSingleton<BotFrameworkAuthentication, ConfigurationBotFrameworkAuthentication>();
