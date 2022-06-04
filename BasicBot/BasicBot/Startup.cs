@@ -3,6 +3,7 @@
 //
 // Generated with Bot Builder V4 SDK Template for Visual Studio EmptyBot v4.15.2
 
+using BasicBot.Dialogs;
 using BasicBot.Infrastructure.Luis;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -53,8 +54,11 @@ namespace BasicBot
             // Create Luis service
             services.AddSingleton<ILuisService, LuisService>();
 
+            // Register dialog
+            services.AddSingleton<RootDialog>();
+
             // Create the bot as a transient. In this case the ASP Controller is expecting an IBot.
-            services.AddTransient<IBot, EmptyBot>();
+            services.AddSingleton<IBot, EmptyBot<RootDialog>>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
