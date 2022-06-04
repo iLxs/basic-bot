@@ -1,4 +1,5 @@
-﻿using BasicBot.Common.Constants;
+﻿using BasicBot.Common.Cards;
+using BasicBot.Common.Constants;
 using BasicBot.Infrastructure.Luis;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Dialogs;
@@ -62,6 +63,9 @@ namespace BasicBot.Dialogs
                 case Constants.INTENT_NONE:
                     await IntentNone(stepContext, luisResult, cancellationToken);
                     break;
+                case Constants.INTENT_VER_OPCIONES:
+                    await IntentVerOpciones(stepContext, luisResult, cancellationToken);
+                    break;
                 default:
                     break;
             }
@@ -92,6 +96,13 @@ namespace BasicBot.Dialogs
         {
             var message = "No pude entender lo que dijiste, intenta con otras palabras";
             await stepContext.Context.SendActivityAsync(message, cancellationToken: cancellationToken);
+        }
+
+        private async Task IntentVerOpciones(WaterfallStepContext stepContext, RecognizerResult luisResult, CancellationToken cancellationToken)
+        {
+            var message = "Estas son mis opciones";
+            await stepContext.Context.SendActivityAsync(message, cancellationToken: cancellationToken);
+            await MainOptionsCard.Send(stepContext, cancellationToken);
         }
 
         #endregion
