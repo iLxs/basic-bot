@@ -1,5 +1,5 @@
-﻿using BasicBot.Infrastructure.Luis;
-using BasicBot.Utils;
+﻿using BasicBot.Common.Constants;
+using BasicBot.Infrastructure.Luis;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Dialogs;
 using System;

@@ -1,4 +1,4 @@
-﻿namespace BasicBot.Utils
+﻿namespace BasicBot.Common.Constants
 {
     public class Constants
     {
