@@ -3,6 +3,7 @@ using BasicBot.Common.Constants;
 using BasicBot.Infrastructure.Luis;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Dialogs;
+using Microsoft.Bot.Schema;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -66,6 +67,9 @@ namespace BasicBot.Dialogs
                 case Constants.INTENT_VER_OPCIONES:
                     await IntentVerOpciones(stepContext, luisResult, cancellationToken);
                     break;
+                case Constants.INTENT_VER_CENTRO_CONTRACTO:
+                    await IntentVerCentroContacto(stepContext, luisResult, cancellationToken);
+                    break;
                 default:
                     break;
             }
@@ -103,6 +107,19 @@ namespace BasicBot.Dialogs
             var message = "Estas son mis opciones";
             await stepContext.Context.SendActivityAsync(message, cancellationToken: cancellationToken);
             await MainOptionsCard.Send(stepContext, cancellationToken);
+        }
+
+        private async Task IntentVerCentroContacto(WaterfallStepContext stepContext, RecognizerResult luisResult, CancellationToken cancellationToken)
+        {
+            string phoneDetail = $"Nuestro números de atención son los siguientes: {Environment.NewLine}" +
+                $"📞 +51 987654321{Environment.NewLine} 📞 +51 987456123";
+            string addressDetail = $"🏢 Estamos ubicados en {Environment.NewLine} Calle Chatbot 457, La Molina, Lima";
+
+            await stepContext.Context.SendActivityAsync(addressDetail, cancellationToken: cancellationToken);
+            await Task.Delay(2000);
+            await stepContext.Context.SendActivityAsync(phoneDetail, cancellationToken: cancellationToken);
+            var helpMessage = "¿En qué más te puedo ayudar?";
+            await stepContext.Context.SendActivityAsync(helpMessage, cancellationToken: cancellationToken);
         }
 
         #endregion
