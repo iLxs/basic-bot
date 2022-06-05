@@ -18,8 +18,11 @@ namespace BasicBot.Dialogs.CreateAppointment
         public static UserModel newUserModel = new UserModel();
         public static MedicalAppointmentModel newMedicalAppointmentModel = new MedicalAppointmentModel();
 
-        public CreateAppointmentDialog(IDatabaseService databaseService)
+        private readonly IStatePropertyAccessor<BotStateModel> _userState;
+
+        public CreateAppointmentDialog(IDatabaseService databaseService, UserState userState)
         {
+            _userState = userState.CreateProperty<BotStateModel>(nameof(BotStateModel));
             _databaseService = databaseService;
 
             var waterfallSteps = new WaterfallStep[]
@@ -41,6 +44,11 @@ namespace BasicBot.Dialogs.CreateAppointment
 
         private async Task<DialogTurnResult> SetPhone(WaterfallStepContext stepContext, CancellationToken cancellationToken)
         {
+            if (await UserHasMedicalData(stepContext))
+            {
+                return await stepContext.NextAsync(cancellationToken: cancellationToken);
+            }
+
             return await stepContext.PromptAsync(
                 nameof(TextPrompt),
                 new PromptOptions()
@@ -53,6 +61,11 @@ namespace BasicBot.Dialogs.CreateAppointment
 
         private async Task<DialogTurnResult> SetFullName(WaterfallStepContext stepContext, CancellationToken cancellationToken)
         {
+            if (await UserHasMedicalData(stepContext))
+            {
+                return await stepContext.NextAsync(cancellationToken: cancellationToken);
+            }
+
             var userPhone = stepContext.Context.Activity.Text;
             newUserModel.phone = userPhone;
 
@@ -68,6 +81,11 @@ namespace BasicBot.Dialogs.CreateAppointment
 
         private async Task<DialogTurnResult> SetEmail(WaterfallStepContext stepContext, CancellationToken cancellationToken)
         {
+            if (await UserHasMedicalData(stepContext))
+            {
+                return await stepContext.NextAsync(cancellationToken: cancellationToken);
+            }
+
             var fullName = stepContext.Context.Activity.Text;
             newUserModel.fullName = fullName;
 
@@ -83,8 +101,11 @@ namespace BasicBot.Dialogs.CreateAppointment
 
         private async Task<DialogTurnResult> SetDate(WaterfallStepContext stepContext, CancellationToken cancellationToken)
         {
-            var email = stepContext.Context.Activity.Text;
-            newUserModel.email = email;
+            if (!await UserHasMedicalData(stepContext))
+            {
+                var email = stepContext.Context.Activity.Text;
+                newUserModel.email = email;
+            }
 
             string message = $"Ahora necesito la fecha de la cita médica con el siguiente formato: "+
                 $"{Environment.NewLine}dd/mm/yyyy";
@@ -136,13 +157,18 @@ namespace BasicBot.Dialogs.CreateAppointment
                 string userId = stepContext.Context.Activity.From.Id;
                 var userModel = await _databaseService.Users.FirstOrDefaultAsync(x => x.id == userId);
 
-                //Update user model
-                userModel.phone = newUserModel.phone;
-                userModel.fullName = newUserModel.fullName;
-                userModel.email = newUserModel.email;
+                var userStateModel = await _userState.GetAsync(stepContext.Context, () => new BotStateModel());
 
-                _databaseService.Users.Update(userModel);
-                await _databaseService.SaveAsync();
+                //Update user model if has no medical data
+                if (!userStateModel.hasMedicalData)
+                {
+                    userModel.phone = newUserModel.phone;
+                    userModel.fullName = newUserModel.fullName;
+                    userModel.email = newUserModel.email;
+
+                    _databaseService.Users.Update(userModel);
+                    await _databaseService.SaveAsync();
+                }
 
                 //Create medical appointment model
                 newMedicalAppointmentModel.id = Guid.NewGuid().ToString();
@@ -151,6 +177,9 @@ namespace BasicBot.Dialogs.CreateAppointment
                 await _databaseService.SaveAsync();
 
                 await stepContext.Context.SendActivityAsync("Tu cita se guardó con éxito", cancellationToken: cancellationToken);
+
+                //Set user hasMedicalData to true
+                userStateModel.hasMedicalData = true;
 
                 //Show appointment summary
                 string summary = $"Para: {userModel.fullName}" +
@@ -203,6 +232,13 @@ namespace BasicBot.Dialogs.CreateAppointment
                 }
             };
             return reply as Activity;
+        }
+
+        private async Task<bool> UserHasMedicalData(WaterfallStepContext stepContext)
+        {
+            var userStateModel = await _userState.GetAsync(stepContext.Context, () => new BotStateModel());
+
+            return userStateModel.hasMedicalData;
         }
     }
 }

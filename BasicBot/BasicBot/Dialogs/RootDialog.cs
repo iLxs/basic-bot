@@ -17,7 +17,7 @@ namespace BasicBot.Dialogs
         private readonly ILuisService _luisService;
         private readonly IDatabaseService _databaseService;
 
-        public RootDialog(ILuisService luisService, IDatabaseService databaseService)
+        public RootDialog(ILuisService luisService, IDatabaseService databaseService, UserState userState)
         {
             _luisService = luisService;
             _databaseService = databaseService;
@@ -32,7 +32,7 @@ namespace BasicBot.Dialogs
             // Add the dialogs to use
             
             AddDialog(new QualificationDialog(_databaseService));
-            AddDialog(new CreateAppointmentDialog(_databaseService));
+            AddDialog(new CreateAppointmentDialog(_databaseService, userState));
             AddDialog(new TextPrompt(nameof(TextPrompt)));
             AddDialog(new WaterfallDialog(nameof(WaterfallDialog), waterfallSteps));
 
