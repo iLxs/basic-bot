@@ -1,9 +1,13 @@
 ﻿using BasicBot.Common.Cards;
 using BasicBot.Common.Constants;
+using BasicBot.Dialogs.CreateAppointment;
+using BasicBot.Dialogs.Qualification;
 using BasicBot.Infrastructure.Luis;
+using BasicBot.Persistence;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Dialogs;
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -12,10 +16,12 @@ namespace BasicBot.Dialogs
     public class RootDialog : ComponentDialog
     {
         private readonly ILuisService _luisService;
+        private readonly IDatabaseService _databaseService;
 
-        public RootDialog(ILuisService luisService)
+        public RootDialog(ILuisService luisService, IDatabaseService databaseService, UserState userState)
         {
             _luisService = luisService;
+            _databaseService = databaseService;
 
             // Create the steps of our waterfall dialog
             var waterfallSteps = new WaterfallStep[]
@@ -24,7 +30,11 @@ namespace BasicBot.Dialogs
                 FinalProcess
             };
 
-            // Create the waterfall dialog
+            // Add the dialogs to use
+            
+            AddDialog(new QualificationDialog(_databaseService));
+            AddDialog(new CreateAppointmentDialog(_databaseService, userState));
+            AddDialog(new TextPrompt(nameof(TextPrompt)));
             AddDialog(new WaterfallDialog(nameof(WaterfallDialog), waterfallSteps));
 
             // Set out waterfall dialog as the initial dialog of this dialog
@@ -66,6 +76,16 @@ namespace BasicBot.Dialogs
                 case Constants.INTENT_VER_OPCIONES:
                     await IntentVerOpciones(stepContext, luisResult, cancellationToken);
                     break;
+                case Constants.INTENT_VER_CENTRO_CONTRACTO:
+                    await IntentVerCentroContacto(stepContext, luisResult, cancellationToken);
+                    break;
+                case Constants.INTENT_CALIFICAR:
+                    return await IntentCalificar(stepContext, luisResult, cancellationToken);
+                case Constants.INTENT_CREAR_CITA:
+                    return await IntentCrearCita(stepContext, luisResult, cancellationToken);
+                case Constants.INTENT_VER_CITA:
+                    await IntentVerCita(stepContext, luisResult, cancellationToken);
+                    break;
                 default:
                     break;
             }
@@ -103,6 +123,62 @@ namespace BasicBot.Dialogs
             var message = "Estas son mis opciones";
             await stepContext.Context.SendActivityAsync(message, cancellationToken: cancellationToken);
             await MainOptionsCard.Send(stepContext, cancellationToken);
+        }
+
+        private async Task IntentVerCentroContacto(WaterfallStepContext stepContext, RecognizerResult luisResult, CancellationToken cancellationToken)
+        {
+            string phoneDetail = $"Nuestro números de atención son los siguientes: {Environment.NewLine}" +
+                $"📞 +51 987654321{Environment.NewLine} 📞 +51 987456123";
+            string addressDetail = $"🏢 Estamos ubicados en {Environment.NewLine} Calle Chatbot 457, La Molina, Lima";
+
+            await stepContext.Context.SendActivityAsync(addressDetail, cancellationToken: cancellationToken);
+            await Task.Delay(2000);
+            await stepContext.Context.SendActivityAsync(phoneDetail, cancellationToken: cancellationToken);
+            var helpMessage = "¿En qué más te puedo ayudar?";
+            await stepContext.Context.SendActivityAsync(helpMessage, cancellationToken: cancellationToken);
+        }
+
+        private async Task<DialogTurnResult> IntentCalificar(WaterfallStepContext stepContext, RecognizerResult luisResult, CancellationToken cancellationToken)
+        {
+            return await stepContext.BeginDialogAsync(nameof(QualificationDialog), cancellationToken: cancellationToken);
+        }
+
+        private async Task<DialogTurnResult> IntentCrearCita(WaterfallStepContext stepContext, RecognizerResult luisResult, CancellationToken cancellationToken)
+        {
+            return await stepContext.BeginDialogAsync(nameof(CreateAppointmentDialog), cancellationToken: cancellationToken);
+        }
+
+        private async Task IntentVerCita(WaterfallStepContext stepContext, RecognizerResult luisResult, CancellationToken cancellationToken)
+        {
+            await stepContext.Context.SendActivityAsync("Un momento por facor...", cancellationToken: cancellationToken);
+
+            string idUser = stepContext.Context.Activity.From.Id;
+
+            var medicalData = _databaseService.MedicalAppointments.Where(x => x.idUser == idUser).ToList();
+
+            if (medicalData.Count == 0)
+            {
+                await stepContext.Context.SendActivityAsync("Parece que no tiene citas médicas", cancellationToken: cancellationToken);
+            }
+            else
+            {
+                var pendingAppointments = medicalData.Where(p => p.date >= DateTime.Now)
+                    .OrderBy(p => p.date)
+                    .ToList();
+
+                if (pendingAppointments.Count == 0)
+                    await stepContext.Context.SendActivityAsync("Parece que no tiene citas médicas", cancellationToken: cancellationToken);
+
+                foreach (var item in pendingAppointments)
+                {
+                    if (item.date == DateTime.Now.Date && item.time > DateTime.Now.Hour)
+                        continue;
+
+                    string summary = $"📅 Fecha: {item.date.ToShortDateString()}" +
+                        $"{Environment.NewLine}🕛 Hora: {item.time}";
+                    await stepContext.Context.SendActivityAsync(summary, cancellationToken: cancellationToken);
+                }
+            }
         }
 
         #endregion

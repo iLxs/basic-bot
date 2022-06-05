@@ -3,6 +3,7 @@
 //
 // Generated with Bot Builder V4 SDK Template for Visual Studio CoreBot v4.15.2
 
+using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Integration.AspNet.Core;
 using Microsoft.Bot.Builder.TraceExtensions;
 using Microsoft.Bot.Connector.Authentication;
@@ -15,6 +16,7 @@ namespace BasicBot
         public AdapterWithErrorHandler(BotFrameworkAuthentication auth, ILogger<IBotFrameworkHttpAdapter> logger)
             : base(auth, logger)
         {
+            Use(new ShowTypingMiddleware());
             OnTurnError = async (turnContext, exception) =>
             {
                 // Log any leaked exception from the application.

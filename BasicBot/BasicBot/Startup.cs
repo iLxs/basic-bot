@@ -34,6 +34,7 @@ namespace BasicBot
         {
             services.AddHttpClient().AddControllers().AddNewtonsoftJson();
 
+            // Cosmos db configuration
             services.AddDbContext<DatabaseService>(options =>
             {
                 options.UseCosmos(
@@ -45,6 +46,7 @@ namespace BasicBot
 
             services.AddScoped<IDatabaseService, DatabaseService>();
 
+            // Blob storage db configuration
             var storage = new BlobsStorage(
                     Configuration.GetValue<string>("BlobConnectionString"),
                     Configuration.GetValue<string>("BlobContainerName")
