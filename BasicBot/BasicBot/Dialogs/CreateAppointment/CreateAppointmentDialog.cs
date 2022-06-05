@@ -1,5 +1,6 @@
 ﻿using BasicBot.Common.Constants;
 using BasicBot.Common.Models;
+using BasicBot.Infrastructure.Luis;
 using BasicBot.Infrastructure.SendGrid;
 using BasicBot.Persistence;
 using Microsoft.Bot.Builder;
@@ -24,10 +25,14 @@ namespace BasicBot.Dialogs.CreateAppointment
 
         private readonly IStatePropertyAccessor<BotStateModel> _userState;
 
-        public CreateAppointmentDialog(IDatabaseService databaseService, UserState userState, ISendGridService sendGridService)
+        private static string userText;
+        private readonly ILuisService _luisService;
+
+        public CreateAppointmentDialog(IDatabaseService databaseService, UserState userState, ISendGridService sendGridService, ILuisService luisService)
         {
             _databaseService = databaseService;
             _sendGridService = sendGridService;
+            _luisService = luisService;
             _userState = userState.CreateProperty<BotStateModel>(nameof(BotStateModel));
 
             var waterfallSteps = new WaterfallStep[]
@@ -49,6 +54,8 @@ namespace BasicBot.Dialogs.CreateAppointment
 
         private async Task<DialogTurnResult> SetPhone(WaterfallStepContext stepContext, CancellationToken cancellationToken)
         {
+            userText = stepContext.Context.Activity.Text;
+
             if (await UserHasMedicalData(stepContext))
             {
                 return await stepContext.NextAsync(cancellationToken: cancellationToken);
@@ -112,6 +119,25 @@ namespace BasicBot.Dialogs.CreateAppointment
                 newUserModel.email = email;
             }
 
+            var newStepContext = stepContext;
+            stepContext.Context.Activity.Text = userText;
+            var luisResult = await _luisService._luisRecognizer.RecognizeAsync(newStepContext.Context, cancellationToken: cancellationToken);
+
+            var entity = luisResult.Entities.ToObject<EntityLuisModel>();
+
+            if (entity.datetime != null)
+            {
+                var date = entity.datetime.First().timex.First().Replace("XXXX", DateTime.Now.Year.ToString());
+                if (date.Length > 10)
+                {
+                    date = date.Remove(10);
+                }
+
+                newMedicalAppointmentModel.date = DateTime.Parse(date);
+
+                return await stepContext.NextAsync(cancellationToken: cancellationToken);
+            }
+
             string message = $"Ahora necesito la fecha de la cita médica con el siguiente formato: "+
                 $"{Environment.NewLine}dd/mm/yyyy";
             return await stepContext.PromptAsync(
@@ -126,8 +152,11 @@ namespace BasicBot.Dialogs.CreateAppointment
 
         private async Task<DialogTurnResult> SetTime(WaterfallStepContext stepContext, CancellationToken cancellationToken)
         {
-            var medicalDate = stepContext.Context.Activity.Text;
-            newMedicalAppointmentModel.date = Convert.ToDateTime(medicalDate);
+            if (newMedicalAppointmentModel.date == DateTime.MinValue)
+            {
+                var medicalDate = stepContext.Context.Activity.Text;
+                newMedicalAppointmentModel.date = Convert.ToDateTime(medicalDate);
+            }
 
             return await stepContext.PromptAsync(
                 nameof(TextPrompt),
@@ -190,7 +219,7 @@ namespace BasicBot.Dialogs.CreateAppointment
                 string summary = $"Para: {userModel.fullName}" +
                     $"{Environment.NewLine}📞 Teléfono: {userModel.phone}" +
                     $"{Environment.NewLine}✉ Email: {userModel.email}" +
-                    $"{Environment.NewLine}📅 Fecha: {newMedicalAppointmentModel.date}" +
+                    $"{Environment.NewLine}📅 Fecha: {newMedicalAppointmentModel.date.ToShortDateString()}" +
                     $"{Environment.NewLine}🕛 Hora: {newMedicalAppointmentModel.time}";
                 await stepContext.Context.SendActivityAsync(summary, cancellationToken: cancellationToken);
 
