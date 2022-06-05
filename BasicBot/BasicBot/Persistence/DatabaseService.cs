@@ -17,6 +17,7 @@ namespace BasicBot.Persistence
         }
 
         public DbSet<UserModel> Users { get; set; }
+        public DbSet<QualificationModel> Qualifications { get; set; }
 
         public async Task<bool> SaveAsync()
         {
@@ -28,6 +29,12 @@ namespace BasicBot.Persistence
             modelBuilder.Entity<UserModel>()
                 .ToContainer("User")
                 .HasPartitionKey("channel")
+                .HasNoDiscriminator()
+                .HasKey("id");
+
+            modelBuilder.Entity<QualificationModel>()
+                .ToContainer("Qualification")
+                .HasPartitionKey("idUser")
                 .HasNoDiscriminator()
                 .HasKey("id");
         }

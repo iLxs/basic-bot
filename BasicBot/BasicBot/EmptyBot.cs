@@ -35,7 +35,7 @@ namespace BasicBot
             {
                 if (member.Id != turnContext.Activity.Recipient.Id)
                 {
-                    await turnContext.SendActivityAsync(MessageFactory.Text($"Hello world!"), cancellationToken);
+                    await turnContext.SendActivityAsync(MessageFactory.Text($"Bienvenido"), cancellationToken);
                 }
             }
         }
@@ -65,7 +65,7 @@ namespace BasicBot
             userModel.id = turnContext.Activity.From.Id;
             userModel.usernameChannel = turnContext.Activity.From.Name;
             userModel.channel = turnContext.Activity.ChannelId;
-            userModel.registerDate = DateTime.Now.Date;
+            userModel.registerDate = DateTime.Now;
 
             var user = await _databaseService.Users.FirstOrDefaultAsync(u => u.id == userModel.id);
 

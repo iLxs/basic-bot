@@ -1,9 +1,10 @@
 ﻿using BasicBot.Common.Cards;
 using BasicBot.Common.Constants;
+using BasicBot.Dialogs.Qualification;
 using BasicBot.Infrastructure.Luis;
+using BasicBot.Persistence;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Dialogs;
-using Microsoft.Bot.Schema;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,10 +14,12 @@ namespace BasicBot.Dialogs
     public class RootDialog : ComponentDialog
     {
         private readonly ILuisService _luisService;
+        private readonly IDatabaseService _databaseService;
 
-        public RootDialog(ILuisService luisService)
+        public RootDialog(ILuisService luisService, IDatabaseService databaseService)
         {
             _luisService = luisService;
+            _databaseService = databaseService;
 
             // Create the steps of our waterfall dialog
             var waterfallSteps = new WaterfallStep[]
@@ -25,7 +28,10 @@ namespace BasicBot.Dialogs
                 FinalProcess
             };
 
-            // Create the waterfall dialog
+            // Add the dialogs to use
+            
+            AddDialog(new QualificationDialog(_databaseService));
+            AddDialog(new TextPrompt(nameof(TextPrompt)));
             AddDialog(new WaterfallDialog(nameof(WaterfallDialog), waterfallSteps));
 
             // Set out waterfall dialog as the initial dialog of this dialog
@@ -70,6 +76,8 @@ namespace BasicBot.Dialogs
                 case Constants.INTENT_VER_CENTRO_CONTRACTO:
                     await IntentVerCentroContacto(stepContext, luisResult, cancellationToken);
                     break;
+                case Constants.INTENT_CALIFICAR:
+                    return await IntentCalificar(stepContext, luisResult, cancellationToken);
                 default:
                     break;
             }
@@ -120,6 +128,11 @@ namespace BasicBot.Dialogs
             await stepContext.Context.SendActivityAsync(phoneDetail, cancellationToken: cancellationToken);
             var helpMessage = "¿En qué más te puedo ayudar?";
             await stepContext.Context.SendActivityAsync(helpMessage, cancellationToken: cancellationToken);
+        }
+
+        private async Task<DialogTurnResult> IntentCalificar(WaterfallStepContext stepContext, RecognizerResult luisResult, CancellationToken cancellationToken)
+        {
+            return await stepContext.BeginDialogAsync(nameof(QualificationDialog), null, cancellationToken: cancellationToken);
         }
 
         #endregion
