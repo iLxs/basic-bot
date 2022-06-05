@@ -21,5 +21,16 @@
         public const string FACEBOOK_URL = "https://www.facebook.com";
         public const string INSTAGRAM_URL = "https://www.instagram.com/";
         public const string TWITTER_URL = "https://twitter.com/";
+
+        public const string BOT_EMAIL = "lxs-96@hotmail.com";
+        public const string BOT_NAME = "Basic Bot";
+
+        public const string SUBJECT_NUEVA_CITA = "Confirmación de cita";
+        public const string HTML_BODY = "Hola {0},<br><br>" +
+            "El correo es para confirmarte la creación de una cita con la siguiente información:<br>" +
+            "Fecha: {1}<br>" +
+            "Hora: {2}<br><br>" +
+            "Que tengas un buen día,<br>" +
+            "Basic Bot.";
     }
 }

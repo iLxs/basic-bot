@@ -1,4 +1,6 @@
-﻿using BasicBot.Common.Models;
+﻿using BasicBot.Common.Constants;
+using BasicBot.Common.Models;
+using BasicBot.Infrastructure.SendGrid;
 using BasicBot.Persistence;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Dialogs;
@@ -15,15 +17,18 @@ namespace BasicBot.Dialogs.CreateAppointment
     public class CreateAppointmentDialog : ComponentDialog
     {
         private readonly IDatabaseService _databaseService;
+        private readonly ISendGridService _sendGridService;
+
         public static UserModel newUserModel = new UserModel();
         public static MedicalAppointmentModel newMedicalAppointmentModel = new MedicalAppointmentModel();
 
         private readonly IStatePropertyAccessor<BotStateModel> _userState;
 
-        public CreateAppointmentDialog(IDatabaseService databaseService, UserState userState)
+        public CreateAppointmentDialog(IDatabaseService databaseService, UserState userState, ISendGridService sendGridService)
         {
-            _userState = userState.CreateProperty<BotStateModel>(nameof(BotStateModel));
             _databaseService = databaseService;
+            _sendGridService = sendGridService;
+            _userState = userState.CreateProperty<BotStateModel>(nameof(BotStateModel));
 
             var waterfallSteps = new WaterfallStep[]
             {
@@ -189,6 +194,8 @@ namespace BasicBot.Dialogs.CreateAppointment
                     $"{Environment.NewLine}🕛 Hora: {newMedicalAppointmentModel.time}";
                 await stepContext.Context.SendActivityAsync(summary, cancellationToken: cancellationToken);
 
+                await SendEmail(userModel, newMedicalAppointmentModel);
+
                 var helpMessage = "¿En qué más te puedo ayudar?";
                 await stepContext.Context.SendActivityAsync(helpMessage, cancellationToken: cancellationToken);
 
@@ -240,5 +247,12 @@ namespace BasicBot.Dialogs.CreateAppointment
 
             return userStateModel.hasMedicalData;
         }
+
+        private async Task SendEmail(UserModel userModel, MedicalAppointmentModel medicalAppointmentModel)
+        {
+            var htmlBody = string.Format(Constants.HTML_BODY, userModel.fullName, medicalAppointmentModel.date.ToShortDateString(), medicalAppointmentModel.time);
+            await _sendGridService.Execute(userModel.email, userModel.fullName, Constants.SUBJECT_NUEVA_CITA, null, htmlBody);
+        }
+
     }
 }

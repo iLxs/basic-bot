@@ -5,6 +5,7 @@
 
 using BasicBot.Dialogs;
 using BasicBot.Infrastructure.Luis;
+using BasicBot.Infrastructure.SendGrid;
 using BasicBot.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -69,6 +70,9 @@ namespace BasicBot
 
             // Create Luis service
             services.AddSingleton<ILuisService, LuisService>();
+
+            // Create SendGrid service
+            services.AddSingleton<ISendGridService, SendGridService>();
 
             // Register dialog
             services.AddTransient<RootDialog>();
