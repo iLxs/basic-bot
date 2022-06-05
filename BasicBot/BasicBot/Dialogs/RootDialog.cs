@@ -7,6 +7,7 @@ using BasicBot.Persistence;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Dialogs;
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -82,6 +83,9 @@ namespace BasicBot.Dialogs
                     return await IntentCalificar(stepContext, luisResult, cancellationToken);
                 case Constants.INTENT_CREAR_CITA:
                     return await IntentCrearCita(stepContext, luisResult, cancellationToken);
+                case Constants.INTENT_VER_CITA:
+                    await IntentVerCita(stepContext, luisResult, cancellationToken);
+                    break;
                 default:
                     break;
             }
@@ -142,6 +146,39 @@ namespace BasicBot.Dialogs
         private async Task<DialogTurnResult> IntentCrearCita(WaterfallStepContext stepContext, RecognizerResult luisResult, CancellationToken cancellationToken)
         {
             return await stepContext.BeginDialogAsync(nameof(CreateAppointmentDialog), cancellationToken: cancellationToken);
+        }
+
+        private async Task IntentVerCita(WaterfallStepContext stepContext, RecognizerResult luisResult, CancellationToken cancellationToken)
+        {
+            await stepContext.Context.SendActivityAsync("Un momento por facor...", cancellationToken: cancellationToken);
+
+            string idUser = stepContext.Context.Activity.From.Id;
+
+            var medicalData = _databaseService.MedicalAppointments.Where(x => x.idUser == idUser).ToList();
+
+            if (medicalData.Count == 0)
+            {
+                await stepContext.Context.SendActivityAsync("Parece que no tiene citas médicas", cancellationToken: cancellationToken);
+            }
+            else
+            {
+                var pendingAppointments = medicalData.Where(p => p.date >= DateTime.Now)
+                    .OrderBy(p => p.date)
+                    .ToList();
+
+                if (pendingAppointments.Count == 0)
+                    await stepContext.Context.SendActivityAsync("Parece que no tiene citas médicas", cancellationToken: cancellationToken);
+
+                foreach (var item in pendingAppointments)
+                {
+                    if (item.date == DateTime.Now.Date && item.time > DateTime.Now.Hour)
+                        continue;
+
+                    string summary = $"📅 Fecha: {item.date.ToShortDateString()}" +
+                        $"{Environment.NewLine}🕛 Hora: {item.time}";
+                    await stepContext.Context.SendActivityAsync(summary, cancellationToken: cancellationToken);
+                }
+            }
         }
 
         #endregion
