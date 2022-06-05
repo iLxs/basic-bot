@@ -1,5 +1,6 @@
 ﻿using BasicBot.Common.Cards;
 using BasicBot.Common.Constants;
+using BasicBot.Dialogs.CreateAppointment;
 using BasicBot.Dialogs.Qualification;
 using BasicBot.Infrastructure.Luis;
 using BasicBot.Persistence;
@@ -31,6 +32,7 @@ namespace BasicBot.Dialogs
             // Add the dialogs to use
             
             AddDialog(new QualificationDialog(_databaseService));
+            AddDialog(new CreateAppointmentDialog(_databaseService));
             AddDialog(new TextPrompt(nameof(TextPrompt)));
             AddDialog(new WaterfallDialog(nameof(WaterfallDialog), waterfallSteps));
 
@@ -78,6 +80,8 @@ namespace BasicBot.Dialogs
                     break;
                 case Constants.INTENT_CALIFICAR:
                     return await IntentCalificar(stepContext, luisResult, cancellationToken);
+                case Constants.INTENT_CREAR_CITA:
+                    return await IntentCrearCita(stepContext, luisResult, cancellationToken);
                 default:
                     break;
             }
@@ -132,7 +136,12 @@ namespace BasicBot.Dialogs
 
         private async Task<DialogTurnResult> IntentCalificar(WaterfallStepContext stepContext, RecognizerResult luisResult, CancellationToken cancellationToken)
         {
-            return await stepContext.BeginDialogAsync(nameof(QualificationDialog), null, cancellationToken: cancellationToken);
+            return await stepContext.BeginDialogAsync(nameof(QualificationDialog), cancellationToken: cancellationToken);
+        }
+
+        private async Task<DialogTurnResult> IntentCrearCita(WaterfallStepContext stepContext, RecognizerResult luisResult, CancellationToken cancellationToken)
+        {
+            return await stepContext.BeginDialogAsync(nameof(CreateAppointmentDialog), cancellationToken: cancellationToken);
         }
 
         #endregion
