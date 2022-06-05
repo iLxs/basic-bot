@@ -36,7 +36,7 @@ namespace BasicBot.Dialogs
             // Add the dialogs to use
             
             AddDialog(new QualificationDialog(_databaseService));
-            AddDialog(new CreateAppointmentDialog(_databaseService, userState, _sendGridService));
+            AddDialog(new CreateAppointmentDialog(_databaseService, userState, _sendGridService, _luisService));
             AddDialog(new TextPrompt(nameof(TextPrompt)));
             AddDialog(new WaterfallDialog(nameof(WaterfallDialog), waterfallSteps));
 
