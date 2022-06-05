@@ -3,6 +3,7 @@ using BasicBot.Common.Constants;
 using BasicBot.Dialogs.CreateAppointment;
 using BasicBot.Dialogs.Qualification;
 using BasicBot.Infrastructure.Luis;
+using BasicBot.Infrastructure.SendGrid;
 using BasicBot.Persistence;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Dialogs;
@@ -17,11 +18,13 @@ namespace BasicBot.Dialogs
     {
         private readonly ILuisService _luisService;
         private readonly IDatabaseService _databaseService;
+        private readonly ISendGridService _sendGridService;
 
-        public RootDialog(ILuisService luisService, IDatabaseService databaseService, UserState userState)
+        public RootDialog(ILuisService luisService, IDatabaseService databaseService, UserState userState, ISendGridService sendGridService)
         {
             _luisService = luisService;
             _databaseService = databaseService;
+            _sendGridService = sendGridService;
 
             // Create the steps of our waterfall dialog
             var waterfallSteps = new WaterfallStep[]
@@ -33,7 +36,7 @@ namespace BasicBot.Dialogs
             // Add the dialogs to use
             
             AddDialog(new QualificationDialog(_databaseService));
-            AddDialog(new CreateAppointmentDialog(_databaseService, userState));
+            AddDialog(new CreateAppointmentDialog(_databaseService, userState, _sendGridService));
             AddDialog(new TextPrompt(nameof(TextPrompt)));
             AddDialog(new WaterfallDialog(nameof(WaterfallDialog), waterfallSteps));
 
