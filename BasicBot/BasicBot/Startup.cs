@@ -5,12 +5,15 @@
 
 using BasicBot.Dialogs;
 using BasicBot.Infrastructure.Luis;
+using BasicBot.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Bot.Builder;
+using Microsoft.Bot.Builder.Azure;
 using Microsoft.Bot.Builder.Azure.Blobs;
 using Microsoft.Bot.Builder.Integration.AspNet.Core;
 using Microsoft.Bot.Connector.Authentication;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -30,6 +33,17 @@ namespace BasicBot
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddHttpClient().AddControllers().AddNewtonsoftJson();
+
+            services.AddDbContext<DatabaseService>(options =>
+            {
+                options.UseCosmos(
+                    Configuration["CosmosDbEndpoint"],
+                    Configuration["CosmosDbAuthKey"],
+                    Configuration["CosmosDbDatabaseId"]
+                    );
+            });
+
+            services.AddScoped<IDatabaseService, DatabaseService>();
 
             var storage = new BlobsStorage(
                     Configuration.GetValue<string>("BlobConnectionString"),
@@ -55,10 +69,10 @@ namespace BasicBot
             services.AddSingleton<ILuisService, LuisService>();
 
             // Register dialog
-            services.AddSingleton<RootDialog>();
+            services.AddTransient<RootDialog>();
 
             // Create the bot as a transient. In this case the ASP Controller is expecting an IBot.
-            services.AddSingleton<IBot, EmptyBot<RootDialog>>();
+            services.AddTransient<IBot, EmptyBot<RootDialog>>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
