@@ -5,6 +5,7 @@
 
 using BasicBot.Dialogs;
 using BasicBot.Infrastructure.Luis;
+using BasicBot.Infrastructure.QnAMakerAI;
 using BasicBot.Infrastructure.SendGrid;
 using BasicBot.Persistence;
 using Microsoft.AspNetCore.Builder;
@@ -70,6 +71,9 @@ namespace BasicBot
 
             // Create Luis service
             services.AddSingleton<ILuisService, LuisService>();
+
+            // Create QnA Maker service
+            services.AddSingleton<IQnAMakerService, QnAMakerService> ();
 
             // Create SendGrid service
             services.AddSingleton<ISendGridService, SendGridService>();

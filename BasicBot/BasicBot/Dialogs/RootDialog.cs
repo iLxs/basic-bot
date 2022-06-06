@@ -3,6 +3,7 @@ using BasicBot.Common.Constants;
 using BasicBot.Dialogs.CreateAppointment;
 using BasicBot.Dialogs.Qualification;
 using BasicBot.Infrastructure.Luis;
+using BasicBot.Infrastructure.QnAMakerAI;
 using BasicBot.Infrastructure.SendGrid;
 using BasicBot.Persistence;
 using Microsoft.Bot.Builder;
@@ -19,12 +20,14 @@ namespace BasicBot.Dialogs
         private readonly ILuisService _luisService;
         private readonly IDatabaseService _databaseService;
         private readonly ISendGridService _sendGridService;
+        private readonly IQnAMakerService _qnAMakerService;
 
-        public RootDialog(ILuisService luisService, IDatabaseService databaseService, UserState userState, ISendGridService sendGridService)
+        public RootDialog(ILuisService luisService, IDatabaseService databaseService, UserState userState, ISendGridService sendGridService, IQnAMakerService qnAMakerService)
         {
             _luisService = luisService;
             _databaseService = databaseService;
             _sendGridService = sendGridService;
+            _qnAMakerService = qnAMakerService;
 
             // Create the steps of our waterfall dialog
             var waterfallSteps = new WaterfallStep[]
@@ -117,8 +120,20 @@ namespace BasicBot.Dialogs
 
         private async Task IntentNone(WaterfallStepContext stepContext, RecognizerResult luisResult, CancellationToken cancellationToken)
         {
-            var message = "No pude entender lo que dijiste, intenta con otras palabras";
-            await stepContext.Context.SendActivityAsync(message, cancellationToken: cancellationToken);
+            var resultQnA = await _qnAMakerService._qnaMakerResult.GetAnswersAsync(stepContext.Context);
+            var score = resultQnA.FirstOrDefault()?.Score;
+
+            if (score >= 0.5)
+            {
+                string response = resultQnA.FirstOrDefault()?.Answer;
+                await stepContext.Context.SendActivityAsync(response, cancellationToken: cancellationToken);
+            }
+            else
+            {
+                var message = "No pude entender lo que dijiste, intenta con otras palabras";
+                await stepContext.Context.SendActivityAsync(message, cancellationToken: cancellationToken);
+                await IntentVerOpciones(stepContext, luisResult, cancellationToken);
+            }
         }
 
         private async Task IntentVerOpciones(WaterfallStepContext stepContext, RecognizerResult luisResult, CancellationToken cancellationToken)
