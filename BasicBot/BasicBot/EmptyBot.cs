@@ -8,6 +8,7 @@ using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Schema;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,12 +22,33 @@ namespace BasicBot
         private readonly Dialog _dialog;
         private readonly IDatabaseService _databaseService;
 
-        public EmptyBot(UserState userState, ConversationState conversationState, T dialog, IDatabaseService databaseService)
+        // Dependency injected dictionary for storing ConversationReference objects used in NotifyController to proactively message users
+        private readonly ConcurrentDictionary<string, ConversationReference> _conversationReferences;
+
+        public EmptyBot(
+            UserState userState,
+            ConversationState conversationState,
+            T dialog,
+            IDatabaseService databaseService,
+            ConcurrentDictionary<string, ConversationReference> conversationReferences)
         {
             _userState = userState;
             _conversationState = conversationState;
             _dialog = dialog;
             _databaseService = databaseService;
+            _conversationReferences = conversationReferences;
+        }
+        private void AddConversationReference(Activity activity)
+        {
+            var conversationReference = activity.GetConversationReference();
+            _conversationReferences.AddOrUpdate(conversationReference.User.Id, conversationReference, (key, newValue) => conversationReference);
+        }
+
+        protected override Task OnConversationUpdateActivityAsync(ITurnContext<IConversationUpdateActivity> turnContext, CancellationToken cancellationToken)
+        {
+            AddConversationReference(turnContext.Activity as Activity);
+
+            return base.OnConversationUpdateActivityAsync(turnContext, cancellationToken);
         }
 
         protected override async Task OnMembersAddedAsync(IList<ChannelAccount> membersAdded, ITurnContext<IConversationUpdateActivity> turnContext, CancellationToken cancellationToken)
@@ -35,7 +57,7 @@ namespace BasicBot
             {
                 if (member.Id != turnContext.Activity.Recipient.Id)
                 {
-                    await turnContext.SendActivityAsync(MessageFactory.Text($"Bienvenido"), cancellationToken);
+                    await turnContext.SendActivityAsync(MessageFactory.Text($"Bienvenido {turnContext.Activity.From.Name}!"), cancellationToken);
                 }
             }
         }
@@ -52,6 +74,7 @@ namespace BasicBot
         protected override async Task OnMessageActivityAsync(ITurnContext<IMessageActivity> turnContext, CancellationToken cancellationToken)
         {
             await SaveUserAsync(turnContext);
+            AddConversationReference(turnContext.Activity as Activity);
             await _dialog.RunAsync(
                     turnContext,
                     _conversationState.CreateProperty<DialogState>(nameof(DialogState)),
